@@ -1,0 +1,24 @@
+.git
+.git/*
+**/.git
+**/node_modules
+**/.cache
+**/.vercel
+**/.output
+
+# Artefactos de build que se regeneran
+**/build
+**/lib
+**/dist
+**/__generated__
+**/*.tsbuildinfo
+
+# Devcontainer y e2e (no se necesitan en produccion)
+.devcontainer
+**/e2e
+
+# Docs y storages pesados
+.storybook
+https
+**/*.log
+**/.DS_Store

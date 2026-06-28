@@ -1,0 +1,78 @@
+services:
+  db:
+    image: ghcr.io/supabase/postgres:15.1.1.55
+    restart: unless-stopped
+    command: ["postgres", "-c", "listen_addresses=*"]
+    environment:
+      POSTGRES_PASSWORD: pass
+      POSTGRES_DB: webstudio
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d webstudio"]
+      interval: 10s
+      timeout: 5s
+      retries: 25
+    expose:
+      - "5432"
+    networks:
+      - dokploy-network
+
+  rest:
+    image: postgrest/postgrest:v12.2.0
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PGRST_DB_URI: postgresql://postgres:pass@db:5432/webstudio
+      PGRST_DB_SCHEMAS: ${PGRST_DB_SCHEMAS:-public}
+      PGRST_DB_ANON_ROLE: anon
+      PGRST_DB_USE_LEGACY_GUCS: "false"
+      PGRST_JWT_SECRET: ${JWT_SECRET:-jwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecret}
+      PGRST_APP_SETTINGS_JWT_SECRET: ${JWT_SECRET:-jwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecret}
+      PGRST_APP_SETTINGS_JWT_EXP: ${JWT_EXPIRY:-3600s}
+    command: "postgrest"
+    expose:
+      - "3000"
+    networks:
+      - dokploy-network
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    expose:
+      - "3000"
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+
+      # Postgres (hostname = nombre del servicio)
+      DATABASE_URL: postgresql://postgres:pass@db:5432/webstudio
+      DIRECT_URL: postgresql://postgres:pass@db:5432/webstudio
+
+      # PostgREST (hostname = rest)
+      POSTGREST_URL: http://rest:3000
+      POSTGREST_API_KEY: ${POSTGREST_API_KEY}
+
+      # Auth
+      AUTH_SECRET: ${AUTH_SECRET}
+      DEV_LOGIN: ${DEV_LOGIN:-true}
+
+      # Features
+      FEATURE_FLAGS: "*"
+      PLANS: ${PLANS}
+    networks:
+      - dokploy-network
+
+volumes:
+  postgres-data:
+
+networks:
+  dokploy-network:
+    external: true
